@@ -1,0 +1,499 @@
+-- XYRON HUB - v2.6.1 (Upgraded)
+-- Unified Tab System | Live Stats | Full Functional Commands
+
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local StartTime = tick()
+
+-- ===================== SCREENGUI =====================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "XyronHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 999
+
+if gethui then
+	ScreenGui.Parent = gethui()
+elseif syn and syn.protect_gui then
+	syn.protect_gui(ScreenGui)
+	ScreenGui.Parent = game:GetService("CoreGui")
+else
+	ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- ===================== DRAGGING =====================
+local function makeDraggable(handle, frameToMove)
+	local dragging, dragStart, startPos, dragInput
+	handle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = frameToMove.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then dragging = false end
+			end)
+		end
+	end)
+	handle.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			frameToMove.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+end
+
+-- ===================== MAIN FRAME =====================
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 480, 0, 390)
+MainFrame.Position = UDim2.new(0.5, -240, 0.5, -195)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 6)
+local MainStroke = Instance.new("UIStroke", MainFrame)
+MainStroke.Color = Color3.fromRGB(35, 35, 42)
+MainStroke.Thickness = 1
+
+-- TOP BAR
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 30)
+TopBar.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local HeaderLine = Instance.new("Frame", TopBar)
+HeaderLine.Size = UDim2.new(1, 0, 0, 2)
+HeaderLine.Position = UDim2.new(0, 0, 1, -2)
+HeaderLine.BackgroundColor3 = Color3.fromRGB(220, 35, 35)
+HeaderLine.BorderSizePixel = 0
+
+local TitleLabel = Instance.new("TextLabel", TopBar)
+TitleLabel.Size = UDim2.new(1, -60, 1, 0)
+TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "[XYRON.SYS] | UNIFIED SYSTEM HUB"
+TitleLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+TitleLabel.TextSize = 11
+TitleLabel.Font = Enum.Font.Code
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local ButtonContainer = Instance.new("Frame", TopBar)
+ButtonContainer.Size = UDim2.new(0, 50, 1, 0)
+ButtonContainer.Position = UDim2.new(1, -54, 0, 0)
+ButtonContainer.BackgroundTransparency = 1
+
+local UIListLayoutButtons = Instance.new("UIListLayout", ButtonContainer)
+UIListLayoutButtons.FillDirection = Enum.FillDirection.Horizontal
+UIListLayoutButtons.HorizontalAlignment = Enum.HorizontalAlignment.Right
+UIListLayoutButtons.VerticalAlignment = Enum.VerticalAlignment.Center
+UIListLayoutButtons.Padding = UDim.new(0, 4)
+
+local MinimizeBtn = Instance.new("TextButton", ButtonContainer)
+MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+MinimizeBtn.Text = "_"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.Font = Enum.Font.Code
+MinimizeBtn.TextSize = 12
+Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 3)
+
+local CloseBtn = Instance.new("TextButton", ButtonContainer)
+CloseBtn.Size = UDim2.new(0, 20, 0, 20)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 35, 35)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.Code
+CloseBtn.TextSize = 11
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 3)
+
+-- ===================== SEARCH + TABS =====================
+local SearchRow = Instance.new("Frame", MainFrame)
+SearchRow.Name = "SearchRow"
+SearchRow.Size = UDim2.new(1, -16, 0, 28)
+SearchRow.Position = UDim2.new(0, 8, 0, 36)
+SearchRow.BackgroundTransparency = 1
+
+local TabCmds = Instance.new("TextButton", SearchRow)
+TabCmds.Name = "TabCmds"
+TabCmds.Size = UDim2.new(0, 70, 0, 24)
+TabCmds.Position = UDim2.new(0, 0, 0, 2)
+TabCmds.BackgroundColor3 = Color3.fromRGB(220, 35, 35)
+TabCmds.Text = "CMDS"
+TabCmds.TextColor3 = Color3.fromRGB(255, 255, 255)
+TabCmds.Font = Enum.Font.Code
+TabCmds.TextSize = 11
+Instance.new("UICorner", TabCmds).CornerRadius = UDim.new(0, 4)
+
+local TabEmotes = Instance.new("TextButton", SearchRow)
+TabEmotes.Name = "TabEmotes"
+TabEmotes.Size = UDim2.new(0, 70, 0, 24)
+TabEmotes.Position = UDim2.new(0, 76, 0, 2)
+TabEmotes.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+TabEmotes.Text = "EMOTES"
+TabEmotes.TextColor3 = Color3.fromRGB(180, 180, 180)
+TabEmotes.Font = Enum.Font.Code
+TabEmotes.TextSize = 11
+Instance.new("UICorner", TabEmotes).CornerRadius = UDim.new(0, 4)
+
+local SearchFrame = Instance.new("Frame", SearchRow)
+SearchFrame.Size = UDim2.new(1, -156, 0, 24)
+SearchFrame.Position = UDim2.new(0, 156, 0, 2)
+SearchFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 27)
+SearchFrame.BorderSizePixel = 0
+Instance.new("UICorner", SearchFrame).CornerRadius = UDim.new(0, 4)
+local SearchStroke = Instance.new("UIStroke", SearchFrame)
+SearchStroke.Color = Color3.fromRGB(38, 38, 46)
+
+local SearchBox = Instance.new("TextBox", SearchFrame)
+SearchBox.Size = UDim2.new(1, -10, 1, 0)
+SearchBox.Position = UDim2.new(0, 10, 0, 0)
+SearchBox.BackgroundTransparency = 1
+SearchBox.Text = ""
+SearchBox.PlaceholderText = "Search commands / emotes..."
+SearchBox.TextColor3 = Color3.fromRGB(220, 220, 220)
+SearchBox.Font = Enum.Font.Code
+SearchBox.TextSize = 10
+SearchBox.TextXAlignment = Enum.TextXAlignment.Left
+
+local MinIcon = Instance.new("TextButton", ScreenGui)
+MinIcon.Size = UDim2.new(0, 260, 0, 30)
+MinIcon.Position = UDim2.new(0.05, 0, 0.1, 0)
+MinIcon.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+MinIcon.Text = "[XYRON.SYS]"
+MinIcon.TextColor3 = Color3.fromRGB(220, 220, 220)
+MinIcon.Font = Enum.Font.Code
+MinIcon.TextSize = 11
+MinIcon.Visible = false
+Instance.new("UICorner", MinIcon).CornerRadius = UDim.new(0, 4)
+Instance.new("UIStroke", MinIcon).Color = Color3.fromRGB(220, 35, 35)
+
+makeDraggable(TopBar, MainFrame)
+makeDraggable(MinIcon, MinIcon)
+
+-- ===================== CONTENT CONTAINERS =====================
+local CmdsContainer = Instance.new("ScrollingFrame", MainFrame)
+CmdsContainer.Size = UDim2.new(1, -16, 1, -72)
+CmdsContainer.Position = UDim2.new(0, 8, 0, 68)
+CmdsContainer.BackgroundTransparency = 1
+CmdsContainer.BorderSizePixel = 0
+CmdsContainer.ScrollBarThickness = 3
+CmdsContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+local CmdsLayout = Instance.new("UIListLayout", CmdsContainer)
+CmdsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+CmdsLayout.Padding = UDim.new(0, 8)
+
+local EmotesContainer = Instance.new("ScrollingFrame", MainFrame)
+EmotesContainer.Size = UDim2.new(1, -16, 1, -72)
+EmotesContainer.Position = UDim2.new(0, 8, 0, 68)
+EmotesContainer.BackgroundTransparency = 1
+EmotesContainer.BorderSizePixel = 0
+EmotesContainer.ScrollBarThickness = 3
+EmotesContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+EmotesContainer.Visible = false
+local EmotesLayout = Instance.new("UIListLayout", EmotesContainer)
+EmotesLayout.SortOrder = Enum.SortOrder.LayoutOrder
+EmotesLayout.Padding = UDim.new(0, 6)
+
+-- ===================== INFO CARD & AVATAR =====================
+local InfoCard = Instance.new("Frame", CmdsContainer)
+InfoCard.LayoutOrder = 1
+InfoCard.Size = UDim2.new(1, 0, 0, 70)
+InfoCard.BackgroundColor3 = Color3.fromRGB(22, 22, 27)
+Instance.new("UICorner", InfoCard).CornerRadius = UDim.new(0, 4)
+Instance.new("UIStroke", InfoCard).Color = Color3.fromRGB(38, 38, 46)
+
+local InfoText = Instance.new("TextLabel", InfoCard)
+InfoText.Size = UDim2.new(1, -75, 1, -10)
+InfoText.Position = UDim2.new(0, 14, 0, 5)
+InfoText.BackgroundTransparency = 1
+InfoText.Font = Enum.Font.Code
+InfoText.TextSize = 10
+InfoText.TextColor3 = Color3.fromRGB(220, 220, 220)
+InfoText.TextXAlignment = Enum.TextXAlignment.Left
+InfoText.TextYAlignment = Enum.TextYAlignment.Top
+
+local PlayerAvatar = Instance.new("ImageLabel", InfoCard)
+PlayerAvatar.Size = UDim2.new(0, 50, 0, 50)
+PlayerAvatar.Position = UDim2.new(1, -60, 0, 10)
+PlayerAvatar.BackgroundTransparency = 1
+PlayerAvatar.Image = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+Instance.new("UICorner", PlayerAvatar).CornerRadius = UDim.new(1, 0)
+
+local FrameCount, LastFpsCheck, CurrentFps = 0, tick(), 0
+RunService.RenderStepped:Connect(function()
+	FrameCount = FrameCount + 1
+	local now = tick()
+	if now - LastFpsCheck >= 1 then
+		CurrentFps = math.floor(FrameCount / (now - LastFpsCheck))
+		FrameCount = 0; LastFpsCheck = now
+	end
+	local posStr = "0, 0, 0"
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local pos = LocalPlayer.Character.HumanoidRootPart.Position
+		posStr = string.format("%.1f, %.1f, %.1f", pos.X, pos.Y, pos.Z)
+	end
+	InfoText.Text = string.format("USER  : %s (ID: %d)\nSERVER: Place %d\nPOS   : %s\nFPS   : %d", LocalPlayer.Name, LocalPlayer.UserId, game.PlaceId, posStr, CurrentFps)
+end)
+
+-- ===================== GRID FOR MODULE CARDS =====================
+local CardGridFrame = Instance.new("Frame", CmdsContainer)
+CardGridFrame.LayoutOrder = 2
+CardGridFrame.Size = UDim2.new(1, 0, 0, 0)
+CardGridFrame.BackgroundTransparency = 1
+CardGridFrame.AutomaticSize = Enum.AutomaticSize.Y
+local Grid = Instance.new("UIGridLayout", CardGridFrame)
+Grid.CellSize = UDim2.new(0, 148, 0, 40)
+Grid.CellPadding = UDim2.new(0, 6, 0, 6)
+
+local moduleCards = {}
+local function createBoxContainer(commandName, order)
+	local box = Instance.new("Frame", CardGridFrame)
+	box.BackgroundColor3 = Color3.fromRGB(22, 22, 27)
+	box.LayoutOrder = order or 0
+	Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
+	Instance.new("UIStroke", box).Color = Color3.fromRGB(38, 38, 46)
+	if commandName then table.insert(moduleCards, {Box = box, Name = commandName}) end
+	return box
+end
+
+local function createToggle(parent)
+	local toggle = Instance.new("TextButton", parent)
+	toggle.Size = UDim2.new(0, 42, 0, 22)
+	toggle.Position = UDim2.new(1, -47, 0.5, -11)
+	toggle.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+	toggle.Text = "[OFF]"
+	toggle.TextColor3 = Color3.fromRGB(160, 160, 160)
+	toggle.Font = Enum.Font.Code
+	toggle.TextSize = 10
+	Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 2)
+	local state = false
+	local function setState(newState)
+		state = newState
+		toggle.Text = state and "[ON]" or "[OFF]"
+		toggle.BackgroundColor3 = state and Color3.fromRGB(220, 35, 35) or Color3.fromRGB(30, 30, 35)
+		toggle.TextColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(160, 160, 160)
+	end
+	toggle.MouseButton1Click:Connect(function() setState(not state) end)
+	return toggle, function() return state end, setState
+end
+
+-- ===================== MODULE STATES & LOGIC =====================
+local EspEnabled, FlyEnabled, SpeedEnabled, NoclipEnabled, TracersEnabled, GravityEnabled = false, false, false, false, false, false
+local FlySpeed, WalkSpeedValue = 50, 32
+local OriginalGravity = workspace.Gravity
+local EspObjects = {}
+local SpectateTarget = nil
+
+local function clearESP()
+	for _, v in pairs(EspObjects) do pcall(function() v.Box:Remove(); v.Name:Remove() end) end
+	EspObjects = {}
+end
+
+local function createESP(player)
+	if player == LocalPlayer then return end
+	local box, name = Drawing.new("Square"), Drawing.new("Text")
+	box.Visible, box.Color, box.Thickness, box.Filled, box.Transparency = false, Color3.fromRGB(220, 35, 35), 1, false, 1
+	name.Visible, name.Color, name.Size, name.Center, name.Outline = false, Color3.fromRGB(255, 255, 255), 13, true, true
+	EspObjects[player] = {Box = box, Name = name}
+end
+
+local function updateESP()
+	if not EspEnabled then clearESP() return end
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+			if not EspObjects[player] then createESP(player) end
+			local obj, hrp = EspObjects[player], player.Character.HumanoidRootPart
+			local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+			if onScreen then
+				local size = Vector2.new(40, 60)
+				obj.Box.Size, obj.Box.Position, obj.Box.Visible = size, Vector2.new(pos.X - size.X/2, pos.Y - size.Y/2), true
+				obj.Name.Text, obj.Name.Position, obj.Name.Visible = player.Name, Vector2.new(pos.X, pos.Y - size.Y/2 - 14), true
+			else
+				obj.Box.Visible, obj.Name.Visible = false, false
+			end
+		elseif EspObjects[player] then
+			EspObjects[player].Box.Visible, EspObjects[player].Name.Visible = false, false
+		end
+	end
+end
+
+local NoclipConn
+local function setNoclip(state)
+	if NoclipConn then NoclipConn:Disconnect() NoclipConn = nil end
+	if state then
+		NoclipConn = RunService.Stepped:Connect(function()
+			if LocalPlayer.Character then
+				for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+					if part:IsA("BasePart") then part.CanCollide = false end
+				end
+			end
+		end)
+	end
+end
+
+RunService.RenderStepped:Connect(function()
+	updateESP()
+	if SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+		LocalPlayer.Character.Humanoid.WalkSpeed = WalkSpeedValue
+	end
+	
+	-- FIXED CFRAME FLY 
+	if FlyEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local hrp = LocalPlayer.Character.HumanoidRootPart
+		local moveDir = Vector3.new()
+		if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + Camera.CFrame.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - Camera.CFrame.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - Camera.CFrame.RightVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + Camera.CFrame.RightVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0,1,0) end
+		
+		hrp.Velocity = Vector3.new(0,0,0)
+		if moveDir.Magnitude > 0 then moveDir = moveDir.Unit end
+		hrp.CFrame = hrp.CFrame + (moveDir * (FlySpeed * RunService.RenderStepped:Wait()))
+	end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function()
+	task.wait(0.5)
+	if FlyEnabled then end -- Fly runs in RenderStepped now, no setup needed!
+	if NoclipEnabled then setNoclip(true) end
+	if GravityEnabled then workspace.Gravity = 0 end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+	if EspObjects[p] then pcall(function() EspObjects[p].Box:Remove(); EspObjects[p].Name:Remove() end); EspObjects[p] = nil end
+end)
+
+-- ===================== CREATE ALL MODULE CARDS =====================
+local function buildBasicCard(name, labelText, order)
+	local box = createBoxContainer(name, order)
+	local lbl = Instance.new("TextLabel", box)
+	lbl.Size = UDim2.new(0.5, 0, 1, 0)
+	lbl.Position = UDim2.new(0, 12, 0, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = labelText
+	lbl.TextColor3 = Color3.fromRGB(230, 230, 230)
+	lbl.Font = Enum.Font.Code
+	lbl.TextSize = 10
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	return box
+end
+
+local EspBox = buildBasicCard("ESP", "SYS//ESP", 1)
+local EspToggle, getEsp = createToggle(EspBox)
+EspToggle.MouseButton1Click:Connect(function() EspEnabled = getEsp(); if not EspEnabled then clearESP() end end)
+
+local FlyBox = buildBasicCard("FLY", "SYS//FLY", 2)
+local FlyInput = Instance.new("TextBox", FlyBox)
+FlyInput.Size = UDim2.new(0, 24, 0, 18)
+FlyInput.Position = UDim2.new(1, -78, 0.5, -9)
+FlyInput.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+FlyInput.Text = "50"
+FlyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+FlyInput.Font = Enum.Font.Code
+FlyInput.TextSize = 9
+FlyInput.FocusLost:Connect(function() local n = tonumber(FlyInput.Text); if n then FlySpeed = math.clamp(n, 1, 500) end end)
+local FlyToggle, getFly = createToggle(FlyBox)
+FlyToggle.MouseButton1Click:Connect(function() FlyEnabled = getFly() end)
+
+local SpeedBox = buildBasicCard("SPEED", "SYS//SPD", 3)
+local SpeedToggle, getSpeed = createToggle(SpeedBox)
+SpeedToggle.MouseButton1Click:Connect(function() SpeedEnabled = getSpeed() end)
+
+local NoclipBox = buildBasicCard("NOCLIP", "SYS//CLIP", 4)
+local NoclipToggle, getNoclip = createToggle(NoclipBox)
+NoclipToggle.MouseButton1Click:Connect(function() NoclipEnabled = getNoclip(); setNoclip(NoclipEnabled) end)
+
+local GravityBox = buildBasicCard("GRAVITY", "SYS//GRAV", 5)
+local GravityToggle, getGravity = createToggle(GravityBox)
+GravityToggle.MouseButton1Click:Connect(function() GravityEnabled = getGravity(); workspace.Gravity = GravityEnabled and 0 or OriginalGravity end)
+
+-- FIXED BUTTON GENERATOR
+local function createButtonCard(name, labelText, btnText, order, callback)
+	local box = buildBasicCard(name, labelText, order)
+	local btn = Instance.new("TextButton", box)
+	btn.Size = UDim2.new(0, 50, 0, 22)
+	btn.Position = UDim2.new(1, -55, 0.5, -11)
+	btn.BackgroundColor3 = Color3.fromRGB(220, 35, 35)
+	btn.Text = btnText
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Font = Enum.Font.Code
+	btn.TextSize = 10
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 3)
+	btn.MouseButton1Click:Connect(callback)
+end
+
+createButtonCard("RESET CHARACTER", "SYS//RESET", "DIE", 6, function()
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+		LocalPlayer.Character.Humanoid.Health = 0
+	end
+end)
+
+createButtonCard("COPY POSITION", "SYS//COPYPOS", "COPY", 7, function()
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local pos = LocalPlayer.Character.HumanoidRootPart.Position
+		setclipboard(string.format("%.1f, %.1f, %.1f", pos.X, pos.Y, pos.Z))
+	end
+end)
+
+createButtonCard("COPY SERVER", "SYS//SERVER", "COPY", 8, function()
+	setclipboard(game.JobId)
+end)
+
+-- ===================== EMOTES TAB =====================
+local emotes = {["Take and Hold The L"] = 95465599788325, ["Floss Dance"] = 5917570207}
+local emoteButtons = {}
+for emoteName, emoteId in pairs(emotes) do
+	local btn = Instance.new("TextButton", EmotesContainer)
+	btn.Size, btn.BackgroundColor3, btn.Text, btn.TextColor3 = UDim2.new(1, 0, 0, 34), Color3.fromRGB(22, 22, 27), "  " .. emoteName, Color3.fromRGB(230, 230, 230)
+	btn.TextXAlignment = Enum.TextXAlignment.Left
+	btn.MouseButton1Click:Connect(function()
+		local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+		if hum then pcall(function() local desc = hum:FindFirstChildOfClass("HumanoidDescription") or Instance.new("HumanoidDescription"); desc:AddEmote(emoteName, emoteId); hum:PlayEmoteAsync(emoteName) end) end
+	end)
+	table.insert(emoteButtons, {Button = btn, Name = emoteName})
+end
+
+-- ===================== TABS & SEARCH =====================
+local currentTab = "Cmds"
+local function switchTab(tab)
+	currentTab = tab
+	CmdsContainer.Visible = (tab == "Cmds")
+	EmotesContainer.Visible = (tab == "Emotes")
+	SearchBox.Text = ""
+end
+TabCmds.MouseButton1Click:Connect(function() switchTab("Cmds") end)
+TabEmotes.MouseButton1Click:Connect(function() switchTab("Emotes") end)
+
+SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+	local query = string.lower(SearchBox.Text)
+	local targetList = currentTab == "Cmds" and moduleCards or emoteButtons
+	for _, item in ipairs(targetList) do
+		local element = item.Box or item.Button
+		element.Visible = (query == "" or string.find(string.lower(item.Name), query, 1, true) ~= nil)
+	end
+end)
+
+-- ===================== MINIMIZE / CLOSE =====================
+local isMinimized = false
+MinimizeBtn.MouseButton1Click:Connect(function() isMinimized = not isMinimized; MainFrame.Visible = not isMinimized; MinIcon.Visible = isMinimized end)
+MinIcon.MouseButton1Click:Connect(function() isMinimized = false; MainFrame.Visible = true; MinIcon.Visible = false end)
+CloseBtn.MouseButton1Click:Connect(function()
+	clearESP(); FlyEnabled = false; setNoclip(false); workspace.Gravity = OriginalGravity; ScreenGui:Destroy()
+end)
